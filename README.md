@@ -21,6 +21,7 @@ A FastAPI service for managing books and reviews with Redis caching.
 
 ### Start services
   docker-compose up -d --build
+  docker-compose up -d
 
 ### Run migrations
   docker-compose exec web alembic upgrade head
