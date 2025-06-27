@@ -1,25 +1,70 @@
 import pytest
-from unittest.mock import MagicMock
-from app.services.cache import CacheService
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.main import app
+from app.db.database import Base, get_db
+from app.models.book import Book as BookModel
+from app.models.review import Review as ReviewModel
+from typing import Any
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
+@pytest.fixture(scope="session")
+def engine():
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture
-def failing_cache():
-    mock = MagicMock(spec=CacheService)
-    mock.get.side_effect = Exception("Cache is down")
-    mock.set.side_effect = Exception("Cache is down")
-    return mock
+def db(engine):
+    connection = engine.connect()
+    db = sessionmaker(bind=connection)()
 
-def test_cache_miss_path(client, db, failing_cache):
-    app.dependency_overrides[get_cache] = lambda: failing_cache
-    
-    from app.models import Book
-    db_book = Book(title="DB Book", author="DB Author")
-    db.add(db_book)
+    print("\nCleaning database...")
+    for table in reversed(Base.metadata.sorted_tables):
+        print(f"Deleting from {table}")
+        db.execute(table.delete())
     db.commit()
-    db.refresh(db_book)
+
+    try:
+        yield db
+    finally:
+        connection.close()
+
+@pytest.fixture
+def client(db):
+    def override_get_db():
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            pass
     
-    response = client.get("/books")
-    assert response.status_code == 200
-    books = response.json()
-    assert len(books) == 1
-    assert books[0]["title"] == "DB Book"
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+
+@pytest.fixture
+def mock_cache():
+    class MockCacheService:
+        def __init__(self):
+            self.cache = {}
+        
+        def get(self, key: str):
+            return self.cache.get(key)
+        
+        def set(self, key: str, value: Any, ttl: int = 3600):
+            self.cache[key] = value
+        
+        def delete(self, key: str):
+            self.cache.pop(key, None)
+    
+    return MockCacheService()

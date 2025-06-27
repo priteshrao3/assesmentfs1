@@ -1,42 +1,4 @@
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.main import app
-from app.db.database import Base
-from app.schemas import BookCreate, ReviewCreate
-
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base.metadata.create_all(bind=engine)
-
-@pytest.fixture
-def db():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@pytest.fixture
-def client(db):
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            db.close()
-    
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-
-def test_create_and_list_reviews(client):
+def test_create_and_list_reviews(client, db):
     book_data = {
         "title": "Test Book",
         "author": "Test Author",
@@ -44,6 +6,10 @@ def test_create_and_list_reviews(client):
     }
     book_response = client.post("/books", json=book_data)
     book_id = book_response.json()["id"]
+    
+    response = client.get(f"/books/{book_id}/reviews")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
     
     review_data = {
         "reviewer_name": "Test Reviewer",

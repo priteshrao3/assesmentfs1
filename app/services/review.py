@@ -10,7 +10,7 @@ class ReviewService:
         return self.db.query(Review).filter(Review.book_id == book_id).all()
 
     def create_review(self, book_id: int, review: ReviewCreate):
-        db_review = Review(**review.dict(), book_id=book_id)
+        db_review = Review(**review.model_dump(), book_id=book_id)
         self.db.add(db_review)
         self.db.commit()
         self.db.refresh(db_review)

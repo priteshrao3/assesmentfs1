@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.book import Book
 from app.schemas.book import BookCreate
 from app.services.cache import CacheService
+from sqlalchemy.orm import joinedload
 
 class BookService:
     def __init__(self, db: Session, cache: CacheService):
@@ -13,17 +14,17 @@ class BookService:
         if cached_books:
             return cached_books
             
-        books = self.db.query(Book).all()
+        books = self.db.query(Book).options(joinedload(Book.reviews)).all()
         
         try:
             self.cache.set("all_books", books)
-        except Exception as e:
+        except Exception:
             pass
             
         return books
 
     def create_book(self, book: BookCreate):
-        db_book = Book(**book.dict())
+        db_book = Book(**book.model_dump())
         self.db.add(db_book)
         self.db.commit()
         self.db.refresh(db_book)
