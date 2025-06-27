@@ -39,4 +39,8 @@ class CacheService:
         try:
             self.client.delete(key)
         except redis.RedisError:
-            pass
+            pass 
+            
+            
+            
+          

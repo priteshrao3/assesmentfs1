@@ -4,6 +4,7 @@ from app.schemas.review import Review
 
 class BookBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    
     title: str
     author: str
     description: Optional[str] = None
@@ -16,6 +17,7 @@ class BookUpdate(BookBase):
 
 class BookPatch(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    
     title: Optional[str] = None
     author: Optional[str] = None
     description: Optional[str] = None

@@ -3,6 +3,7 @@ from typing import Optional
 
 class ReviewBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    
     reviewer_name: str
     content: str
     rating: int
@@ -14,7 +15,8 @@ class ReviewUpdate(ReviewBase):
     pass
 
 class ReviewPatch(BaseModel):
-    model_config = ConfigDict(from_attributes=True) 
+    model_config = ConfigDict(from_attributes=True)
+    
     reviewer_name: Optional[str] = None
     content: Optional[str] = None
     rating: Optional[int] = None
